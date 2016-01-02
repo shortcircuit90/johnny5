@@ -3,11 +3,11 @@
 <title>Static Call Graph - [.\PF.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image .\PF.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5.03 [Build 76]: Last Updated: Fri Jan 01 23:14:39 2016
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5.03 [Build 76]: Last Updated: Sat Jan 02 17:40:01 2016
 <BR><P>
 <H3>Maximum Stack Usage =        104 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
-__rt_entry_main &rArr; main &rArr; Avanzar &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
+__rt_entry_main &rArr; main &rArr; Retroceder &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
 <P>
 <H3>
 Functions with no stack information
@@ -192,7 +192,7 @@ Global Symbols
 
 <P><STRONG><a name="[3e]"></a>__rt_entry_main</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, rtentry2.o(.ARM.Collect$$rtentry$$0000000D))
 <BR><BR>[Stack]<UL><LI>Max Depth = 104 + Unknown Stack Size
-<LI>Call Chain = __rt_entry_main &rArr; main &rArr; Avanzar &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
+<LI>Call Chain = __rt_entry_main &rArr; main &rArr; Retroceder &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
 </UL>
 <BR>[Calls]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;exit
 <LI><a href="#[3f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
@@ -474,7 +474,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[3f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[4c]"></a>TIMER2_Config</STRONG> (Thumb, 66 bytes, Stack size 8 bytes, main.o(.text))
+<P><STRONG><a name="[4c]"></a>TIMER2_Config</STRONG> (Thumb, 70 bytes, Stack size 8 bytes, main.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = TIMER2_Config &rArr; NVIC_SetPriority
 </UL>
 <BR>[Calls]<UL><LI><a href="#[4b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;NVIC_EnableIRQ
@@ -546,7 +546,9 @@ Global Symbols
 <LI><a href="#[5a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MotorI_Disable
 <LI><a href="#[59]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MotorD_Disable
 </UL>
-<BR>[Called By]<UL><LI><a href="#[5f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Giro_Derecha
+<BR>[Called By]<UL><LI><a href="#[60]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Giro_Izquierda
+<LI><a href="#[5f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Giro_Derecha
+<LI><a href="#[5e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Retroceder
 <LI><a href="#[5b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Avanzar
 </UL>
 
@@ -562,14 +564,19 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[3f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[5e]"></a>Retroceder</STRONG> (Thumb, 24 bytes, Stack size 8 bytes, main.o(.text), UNUSED)
-<BR><BR>[Calls]<UL><LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Set_Velocidad_I
+<P><STRONG><a name="[5e]"></a>Retroceder</STRONG> (Thumb, 268 bytes, Stack size 16 bytes, main.o(.text))
+<BR><BR>[Stack]<UL><LI>Max Depth = 104<LI>Call Chain = Retroceder &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
+</UL>
+<BR>[Calls]<UL><LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Parar
+<LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Set_Velocidad_I
 <LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Set_Velocidad_D
 <LI><a href="#[5d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MotorI_Enable
 <LI><a href="#[5c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MotorD_Enable
 </UL>
+<BR>[Called By]<UL><LI><a href="#[3f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
+</UL>
 
-<P><STRONG><a name="[5f]"></a>Giro_Derecha</STRONG> (Thumb, 216 bytes, Stack size 8 bytes, main.o(.text))
+<P><STRONG><a name="[5f]"></a>Giro_Derecha</STRONG> (Thumb, 100 bytes, Stack size 8 bytes, main.o(.text))
 <BR><BR>[Stack]<UL><LI>Max Depth = 96<LI>Call Chain = Giro_Derecha &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
 </UL>
 <BR>[Calls]<UL><LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Parar
@@ -581,17 +588,24 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[3f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[60]"></a>Giro_Izquierda</STRONG> (Thumb, 24 bytes, Stack size 8 bytes, main.o(.text), UNUSED)
-<BR><BR>[Calls]<UL><LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Set_Velocidad_I
+<P><STRONG><a name="[60]"></a>Giro_Izquierda</STRONG> (Thumb, 100 bytes, Stack size 8 bytes, main.o(.text))
+<BR><BR>[Stack]<UL><LI>Max Depth = 96<LI>Call Chain = Giro_Izquierda &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
+</UL>
+<BR>[Calls]<UL><LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Parar
+<LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Set_Velocidad_I
 <LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Set_Velocidad_D
 <LI><a href="#[5d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MotorI_Enable
 <LI><a href="#[5c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MotorD_Enable
 </UL>
-
-<P><STRONG><a name="[3f]"></a>main</STRONG> (Thumb, 58 bytes, Stack size 0 bytes, main.o(.text))
-<BR><BR>[Stack]<UL><LI>Max Depth = 104<LI>Call Chain = main &rArr; Avanzar &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
+<BR>[Called By]<UL><LI><a href="#[3f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
-<BR>[Calls]<UL><LI><a href="#[5f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Giro_Derecha
+
+<P><STRONG><a name="[3f]"></a>main</STRONG> (Thumb, 68 bytes, Stack size 0 bytes, main.o(.text))
+<BR><BR>[Stack]<UL><LI>Max Depth = 104<LI>Call Chain = main &rArr; Retroceder &rArr; Parar &rArr; Set_Velocidad_I &rArr; __aeabi_dmul
+</UL>
+<BR>[Calls]<UL><LI><a href="#[60]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Giro_Izquierda
+<LI><a href="#[5f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Giro_Derecha
+<LI><a href="#[5e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Retroceder
 <LI><a href="#[5b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Avanzar
 <LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TIMER2_Config
 <LI><a href="#[49]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TIMER0_Config
