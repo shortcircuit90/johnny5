@@ -9,6 +9,14 @@
 #define pi 3.14				
 #define Radio 3.3			     //Radio rueda
 #define Ticks_Delay 3
+#define Fmuestreo 1000
+#define Vref 3.3
+#define duttyforward 75
+#define duttybackward 25
+#define duttyturnrightI	75
+#define duttyturnrightD	25
+#define duttyturnleftD  75
+#define duttyturnleftI	25
 
 //Variables
 uint32_t T1=0, T2=0;
@@ -17,6 +25,8 @@ uint32_t Velocidad_Drcha=0, Velocidad_Izq=0;
 float Distancia_Drcha=0;			     //Distancia recorrida por los motores.
 uint32_t vueltas=0;
 uint32_t Centimetros=0;
+float Valor_ADC=0, Voltios=0;
+float Distancia=0;
 
 //Configuracion GPIOS enable motores
 void Config_GPIO()
@@ -52,7 +62,8 @@ void MotorI_Disable()
 void PWM_Config()
 {
 	LPC_SC->PCONP|=(1<<6);				                                //On PWM.
-	LPC_PINCON->PINSEL3|=(1<<9)|(1<<11)|(1<<17)|(1<<21);			    //P1.20 as PWM1.2, P1.21 as PWM1.3, P1.24 as PWM1.5, P1.26 as PWM1.6  							   
+	LPC_PINCON->PINSEL3|=(1<<9)|(1<<11)|(1<<17)|(1<<21);			    //P1.20 as PWM1.2, P1.21 as PWM1.3, P1.24 as PWM1.5, P1.26 as PWM1.6 
+																																//CAMBIAR EL 1.26
 	LPC_PWM1->PR=0;				                                        //Fpclk=25Mhz
 	LPC_PWM1->MR0=Fpclk*Tpwm;			                                //Tpwm=1ms (25000)																
 	LPC_PWM1->TCR=(1<<1);			                                    //Counter Reset
@@ -86,11 +97,31 @@ void TIMER2_Config()
 	NVIC_SetPriority(TIMER2_IRQn,2);    
   NVIC_EnableIRQ(TIMER2_IRQn);
 }
-//MAT 1.0 P1.22 PARA ADC
-//flancos++;
-//if(flancos==20)
-//	n
-//	velocidad=(1rpm/periodo)*1000*60;
+
+void TIMER1_Config()
+{
+	LPC_SC->PCONP|=(1<<2);					        //ON TIMER1	
+	//LPC_PINCON->PINSEL3|=(3<<12);   				//P1.22 as MAT1.0
+	LPC_TIM1->PR=0;					                //FTIM1=Fpclk=25MHz
+	LPC_TIM1->MCR=(1<<1);			  					  //Reset MAT1.0
+	LPC_TIM1->MR0=(Fpclk/Fmuestreo/2);			//Han de darse 2 match para que se inicie la conversión
+	LPC_TIM1->EMR=(1<<0)|(3<<4);						//Toggle
+	LPC_TIM1->TCR=(1<<0);										//Counter Enable.
+}	
+
+void ADC_Config()
+{
+	LPC_SC->PCONP|=(1<<12);			          //ON	ADC
+	LPC_PINCON->PINSEL1|=(1<<14);			    //P0.23 as AD0.0 input
+	LPC_PINCON->PINMODE1|=(1<<15);   			//Ni pull-up ni pull-down
+	LPC_ADC->ADCR=(1<<0)|   						  //Canal 0
+								(1<<8)|   			      	//CLKDIV 13MHz
+								(1<<21)| 								//PDN=1
+	              (6<<24);								//Inicio de conversión MAT 1.0
+	LPC_ADC->ADINTEN|=(1<<8);	            //Hab. interrupción fin de conversión todos los canales, registro global	
+	NVIC_EnableIRQ (ADC_IRQn);					  //Habilitacion del ADC
+	NVIC_SetPriority(ADC_IRQn, 3); 			  //prioridad del ADC
+}
 
 //Velocidad Motor Derecho.
 void Set_Velocidad_D(int Dutty_D)
@@ -148,6 +179,14 @@ void TIMER2_IRQHandler()
 	}
 }
 
+void ADC_IRQHandler (void)
+{
+	Valor_ADC=LPC_ADC->ADSTAT;			         //borramos flag
+	Valor_ADC=((LPC_ADC->ADGDR)>>4)&0xFFF;			    			//Leemos el valor del ADC precisión de 12 bits
+	Voltios=(Valor_ADC*Vref)/4095;					//Convertimos a voltios.
+	Distancia=((23.75/(Voltios-0.2))-0.42);
+}
+
 //Parar motor
 void Parar()
 {
@@ -166,20 +205,20 @@ void Avanzar(int cm)
 	Ticks_Drcha=0;				         //Inicializamos los ticks del encoder derecho
 	Ticks_Izq=0;    					//Inicializamos los ticks del encoder izquierdo
 	Flancos=((20*cm)/21);
-	Set_Velocidad_D(75);			   //Motor derecho con un D del 75%
-	Set_Velocidad_I(75);   			 //Motor izquierdo con un D del 75%
+	Set_Velocidad_D(duttyforward);			   //Motor derecho con un D del 75%
+	Set_Velocidad_I(duttyforward);   			 //Motor izquierdo con un D del 75%
 	do{
 		while(Ticks_Izq==Ticks_Drcha){
-			Set_Velocidad_D(75);			   //Motor derecho con un D del 75%
-			Set_Velocidad_I(75);   			 //Motor izquierdo con un D del 75%
+			Set_Velocidad_D(duttyforward);			   //Motor derecho con un D del 75%
+			Set_Velocidad_I(duttyforward);   			 //Motor izquierdo con un D del 75%
 		}
 			while(Ticks_Izq>Ticks_Drcha){
 			Set_Velocidad_I(50);
-			Set_Velocidad_D(75);
+			Set_Velocidad_D(duttyforward);
 		}
 		while(Ticks_Drcha>Ticks_Izq){
 			Set_Velocidad_D(50);
-			Set_Velocidad_I(75);
+			Set_Velocidad_I(duttyforward);
 		}
 	}while((Ticks_Drcha<=Flancos)&&(Ticks_Izq<=Flancos));
 	Parar();
@@ -199,16 +238,16 @@ void Retroceder(int cm)
 		//Control trayectoria recta
 		do{
 		while(Ticks_Izq==Ticks_Drcha){				     //Mientras los flancos de los dos encoders sean iguales
-			Set_Velocidad_D(25);			   //Motor derecho con un D del 25%
-			Set_Velocidad_I(25);   			 //Motor izquierdo con un D del 25%
+			Set_Velocidad_D(duttybackward);			   //Motor derecho con un D del 25%
+			Set_Velocidad_I(duttybackward);   			 //Motor izquierdo con un D del 25%
 		}
 			while(Ticks_Izq>Ticks_Drcha){
 			Set_Velocidad_I(50);
-			Set_Velocidad_D(25);
+			Set_Velocidad_D(duttybackward);
 		}
 		while(Ticks_Drcha>Ticks_Izq){
 			Set_Velocidad_D(50);
-			Set_Velocidad_I(25);
+			Set_Velocidad_I(duttybackward);
 		}
 	}while((Ticks_Drcha<=Flancos)&&(Ticks_Izq<=Flancos));
 	Parar();
@@ -223,15 +262,15 @@ void Giro_Derecha()
 	Ticks_Izq=0;				        //Inicializamos flancos del encoder izquierdo
 	
 	while((Ticks_Drcha<=10)&&(Ticks_Izq<=10)){
-		Set_Velocidad_D(35);   			 //Motor derecho con un D del 35% (Bajamos velocidad para evitar derrapes en el giro)
-		Set_Velocidad_I(65);			   //Motor Izquierdo con un D del 65%
+		Set_Velocidad_D(duttyturnrightD);   			 //Motor derecho con un D del 35% (Bajamos velocidad para evitar derrapes en el giro)
+		Set_Velocidad_I(duttyturnrightI);			   //Motor Izquierdo con un D del 65%
 	}
 	while(Ticks_Drcha<=10){
 		Set_Velocidad_I(50);
-		Set_Velocidad_D(35);
+		Set_Velocidad_D(duttyturnrightD);
 	}
 	while(Ticks_Izq<=10){
-		Set_Velocidad_I(65);
+		Set_Velocidad_I(duttyturnrightI);
 		Set_Velocidad_D(50);
 	}
 	Parar();
@@ -247,16 +286,16 @@ void Giro_Izquierda()
 	
 	//Control giro de 90º, para un giro de 90º tienen que pasar 10 flancos.
 	while((Ticks_Drcha<=10)&&(Ticks_Izq<=10)){			     //Mientras los flancos de ambos encoders sean menores o igual a 10
-		Set_Velocidad_D(65);   			 //Motor derecho con un D del 65%
-		Set_Velocidad_I(35);			   //Motor Izquierdo con un D del 35%
-	}
-	while(Ticks_Izq<=10){
-		Set_Velocidad_I(35);
-		Set_Velocidad_D(50);
+		Set_Velocidad_D(duttyturnleftD);   			 //Motor derecho con un D del 65%
+		Set_Velocidad_I(duttyturnleftI);			   //Motor Izquierdo con un D del 35%
 	}
 	while(Ticks_Drcha<=10){
 		Set_Velocidad_I(50);
-		Set_Velocidad_D(65);
+		Set_Velocidad_D(duttyturnleftD);
+	}
+	while(Ticks_Izq<=10){
+		Set_Velocidad_I(duttyturnleftI);
+		Set_Velocidad_D(50);
 	}
 	Parar();
 }
@@ -269,9 +308,11 @@ int main (void)
 	PWM_Config();			    								//Configuracion PWM
 	TIMER0_Config();				     					//Configuración TIM0.
 	TIMER2_Config();				    			    //Configuración TIM2.
-	Avanzar(100);
+	TIMER1_Config();
+	ADC_Config();
+	Avanzar(30);
 	Giro_Derecha();
-	Retroceder(50);
+	Retroceder(15);
 	Giro_Izquierda();
 	while (1);
 }
