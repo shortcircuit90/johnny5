@@ -4,29 +4,33 @@
 
 
 //Constantes
-#define Fpclk 25e6			   //Frecuencia periférico
-#define Tpwm 1e-3			   	 //Periódo de la señal de PWM 1ms
+#define Fpclk 25e6			                 //Frecuencia periférico
+#define Tpwm 1e-3			   	               //Periódo de la señal de PWM 1ms
 #define pi 3.14				
-#define Radio 3.3			     //Radio rueda
+#define Radio 3.3			                   //Radio rueda
 #define Ticks_Delay 3
 #define Fmuestreo 1000
-#define Vref 3.3
-#define duttyforward 75
-#define duttybackward 25
-#define duttyturnrightI	75
-#define duttyturnrightD	25
-#define duttyturnleftD  75
-#define duttyturnleftI	25
+#define Vref 3.3				                 //Tensión de referencia para el ADC.
+#define duttyforward 70			             //Ciclo de trabajo avanzar
+#define duttybackward 25				         //Ciclo de trabajo retroceso
+#define duttyturnrightI	75					     //Ciclo de trabajo motor izquierdo giro derecha
+#define duttyturnrightD 25				       //Ciclo de trabajo motor derecho giro derecha
+#define duttyturnleftD 75				         //Ciclo de trabajo motor derecho giro izquierda
+#define duttyturnleftI 25			           //Ciclo de trabajo motot izquierdo giro izquierda.
+#define MAX 3
 
 //Variables
-uint32_t T1=0, T2=0;
+uint32_t T1=0, T2=0;				      //Periódo de los captures
 volatile uint32_t Flancos_Drcha=0, Flancos_Izq=0, Ticks_Drcha=0, Ticks_Izq=0;				    //Contadores de flancos del encoder.
-uint32_t Velocidad_Drcha=0, Velocidad_Izq=0;
+uint32_t Velocidad_Drcha=0, Velocidad_Izq=0;			      //Velocidad motores
 float Distancia_Drcha=0;			     //Distancia recorrida por los motores.
-uint32_t vueltas=0;
+uint32_t vueltas=0;					      //Contadores vuelta.
 uint32_t Centimetros=0;
-float Valor_ADC=0, Voltios=0;
-float Distancia=0;
+float Valor_ADC=0, Voltios=0;			    //Variables ADC 
+volatile unsigned int Distancia=0;	
+
+void Detector_Obstaculos(int dist);
+void Parar(void);
 
 //Configuracion GPIOS enable motores
 void Config_GPIO()
@@ -98,10 +102,10 @@ void TIMER2_Config()
   NVIC_EnableIRQ(TIMER2_IRQn);
 }
 
+//Inicio de Conversión del ADC.
 void TIMER1_Config()
 {
 	LPC_SC->PCONP|=(1<<2);					        //ON TIMER1	
-	//LPC_PINCON->PINSEL3|=(3<<12);   				//P1.22 as MAT1.0
 	LPC_TIM1->PR=0;					                //FTIM1=Fpclk=25MHz
 	LPC_TIM1->MCR=(1<<1);			  					  //Reset MAT1.0
 	LPC_TIM1->MR0=(Fpclk/Fmuestreo/2);			//Han de darse 2 match para que se inicie la conversión
@@ -109,6 +113,7 @@ void TIMER1_Config()
 	LPC_TIM1->TCR=(1<<0);										//Counter Enable.
 }	
 
+//Sensor de distancia.
 void ADC_Config()
 {
 	LPC_SC->PCONP|=(1<<12);			          //ON	ADC
@@ -182,9 +187,29 @@ void TIMER2_IRQHandler()
 void ADC_IRQHandler (void)
 {
 	Valor_ADC=LPC_ADC->ADSTAT;			         //borramos flag
-	Valor_ADC=((LPC_ADC->ADGDR)>>4)&0xFFF;			    			//Leemos el valor del ADC precisión de 12 bits
-	Voltios=(Valor_ADC*Vref)/4095;					//Convertimos a voltios.
-	Distancia=((23.75/(Voltios-0.2))-0.42);
+	Valor_ADC=((LPC_ADC->ADGDR)>>4)&0xFFF;	//Leemos el valor del ADC precisión de 12 bits
+	Voltios=(Valor_ADC*Vref)/4095;					         //Convertimos a voltios.
+	Distancia=(int)((23.75/(Voltios-0.2))-0.42);			     //Calculamos distancia a la que está el objeto
+	Detector_Obstaculos(10);
+//	if((Distancia<=10)||(flag==1)){
+//		Buffer_Dist[i]=Distancia;
+//		i++;
+//		flag=1;
+//		if(i==MAX){
+//			suma=0;
+//			for(j=0; j<MAX; j++){
+//				suma+=Buffer_Dist[j];
+//			}
+//			media=suma/MAX;
+//			if(media<=10){
+//				i=0; 
+//				flag=0;
+//				while(1){
+//					Parar();
+//				}
+//			}
+//		}
+//	}
 }
 
 //Parar motor
@@ -195,6 +220,23 @@ void Parar()
 	Set_Velocidad_D(50);			      //Motor derecho con un D del 50%
 	Set_Velocidad_I(50);				    //Motor izquierdo con un D del 50%
 }
+
+void Detector_Obstaculos(int Dist)
+{
+	static int i=0;
+	
+	if(Distancia<=Dist){
+		i++;
+		while(i==MAX)
+			Parar();
+	}else{
+		i--;
+		if(i < 0){
+			i=0;
+		}
+	}
+}		
+
 
 //Avanzar
 void Avanzar(int cm)
@@ -224,7 +266,7 @@ void Avanzar(int cm)
 	Parar();
 }
 
-//Retroceder
+//Retroced
 void Retroceder(int cm)
 {
 	uint32_t Flancos=0;
@@ -308,11 +350,12 @@ int main (void)
 	PWM_Config();			    								//Configuracion PWM
 	TIMER0_Config();				     					//Configuración TIM0.
 	TIMER2_Config();				    			    //Configuración TIM2.
-	TIMER1_Config();
-	ADC_Config();
-	Avanzar(30);
-	Giro_Derecha();
-	Retroceder(15);
-	Giro_Izquierda();
-	while (1);
+	TIMER1_Config();				     					//Configuración TIM1.
+	ADC_Config();				                  //Configuración ADC.
+	//Giro_Derecha();
+	//Retroceder(15);
+	//Giro_Izquierda();
+	while (1){
+		Avanzar(200);
+	}
 }
