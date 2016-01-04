@@ -29,7 +29,8 @@ float Distancia_Drcha=0;			     //Distancia recorrida por los motores.
 uint32_t vueltas=0;					      //Contadores vuelta.
 uint32_t Centimetros=0;
 float Valor_ADC=0, Voltios=0;			    //Variables ADC 
-volatile unsigned int Distancia=0;	
+volatile unsigned int Distancia=0;
+uint32_t DistObj=0;
 uint32_t i=0;
 char fin=0;
 
@@ -145,18 +146,18 @@ void Set_Velocidad_D(int Dutty_D)
 	dutty=(22500-((Fpclk*Tpwm*Dutty_D)/100));				    //Calculamos ciclo de trabajo del la señal PWM motor derecho.
 	LPC_PWM1->MR1=dutty;			                          //Set 
 	LPC_PWM1->MR2=22500;				     				            //Reset
-	LPC_PWM1->MR2=22500;					    //Reset
-	LPC_PWM1->MR3=dutty;
-	LPC_PWM1->LER|=(1<<1)|(1<<2)|(1<<3);			         //Latch activo para MR1, MR2 y MR3
+	LPC_PWM1->MR2=22500;					    									//Reset
+	LPC_PWM1->MR3=dutty;																//Set
+	LPC_PWM1->LER|=(1<<1)|(1<<2)|(1<<3);			          //Latch activo para MR1, MR2 y MR3
 }
 
 //Velocidad Motor Izquierdo
 void Set_Velocidad_I(int Dutty_I)
 {
-	uint32_t dutty=0;					      //Variable para calcular el ciclo de trabajo					
+	uint32_t dutty=0;					                       //Variable para calcular el ciclo de trabajo					
 	dutty=(22500-((Fpclk*Tpwm*Dutty_I)/100));			   //Calculamos ciclo de trabajo de la señal PWM motor izquierdo.
-	LPC_PWM1->MR4=dutty;				     //Set
-	LPC_PWM1->MR5=22500;			     //Reset
+	LPC_PWM1->MR4=dutty;				                     //Set
+	LPC_PWM1->MR5=22500;			                       //Reset
 	LPC_PWM1->MR5=22500;
 	LPC_PWM1->MR6=dutty;
 	LPC_PWM1->LER|=(1<<4)|(1<<5)|(1<<6);
@@ -166,12 +167,12 @@ void Set_Velocidad_I(int Dutty_I)
 void TIMER0_IRQHandler()
 {
 	static uint32_t temp2=0;
-	LPC_TIM0->IR|=(1<<5);			    //Borramos flag
-	Flancos_Drcha++;			        //Contamos flancos para calcular vueltas
-	Ticks_Drcha++;				        //Contamos flancos
+	LPC_TIM0->IR|=(1<<5);			                    //Borramos flag
+	Flancos_Drcha++;			                        //Contamos flancos para calcular vueltas
+	Ticks_Drcha++;				                        //Contamos flancos
 	Distancia_Drcha+=((18*pi)/180)*Radio;			    //Distancia que tiene que mostrar por pantalla, distancia absoluta.
-	if(Flancos_Drcha==20){			    //Si damos una vuelta   						
-		T2=LPC_TIM0->CR1-temp2;
+	if(Flancos_Drcha==20){			                  //Si damos una vuelta   						
+		T2=LPC_TIM0->CR1-temp2;				              //Calculamos periódo
 		vueltas++;
 		Velocidad_Drcha=((1000*2*pi*3.3)/T2)*60;
 		Flancos_Drcha=0;		
@@ -200,7 +201,7 @@ void ADC_IRQHandler (void)
 	Valor_ADC=((LPC_ADC->ADGDR)>>4)&0xFFF;	//Leemos el valor del ADC precisión de 12 bits
 	Voltios=(Valor_ADC*Vref)/4095;					         //Convertimos a voltios.
 	Distancia=(int)((23.75/(Voltios-0.2))-0.42);			     //Calculamos distancia a la que está el objeto
-	Detector_Obstaculos(Centimetros);
+	Detector_Obstaculos(DistObj);
 }
 
 //Parar motor
@@ -236,7 +237,7 @@ void Avanzar(int cm)
 	MotorD_Enable();					     //Habilitamos motor derecho
 	MotorI_Enable();				       //Habilitamos motor Izquierdo
 	Ticks_Drcha=0;				         //Inicializamos los ticks del encoder derecho
-	Ticks_Izq=0;    					//Inicializamos los ticks del encoder izquierdo
+	Ticks_Izq=0;    					     //Inicializamos los ticks del encoder izquierdo
 	Flancos=((20*cm)/21);
 	Set_Velocidad_D(duttyforward);			   //Motor derecho con un D del 75%
 	Set_Velocidad_I(duttyforward);   			 //Motor izquierdo con un D del 75%
@@ -375,8 +376,7 @@ int main (void)
 					Retroceder(Centimetros);
 				}
 				else if(buffer[i]=='O'){
-					Centimetros=atoi(&buffer[i+1]);
-					Detector_Obstaculos(Centimetros);
+					DistObj=atoi(&buffer[i+1]);
 				}
 				else if(buffer[i]==0x0D){
 					fin=1;
