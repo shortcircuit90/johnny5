@@ -6,3 +6,6 @@
 .\main.o: C:\keil\ARM\CMSIS\Include\core_cmFunc.h
 .\main.o: C:\keil\ARM\Inc\NXP\LPC17xx\system_LPC17xx.h
 .\main.o: C:\keil\ARM\ARMCC\bin\..\include\stdio.h
+.\main.o: uart.h
+.\main.o: C:\keil\ARM\ARMCC\bin\..\include\string.h
+.\main.o: C:\keil\ARM\ARMCC\bin\..\include\stdlib.h

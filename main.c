@@ -1,7 +1,9 @@
 #include <LPC17xx.H>
 #include <stdint.h>
 #include <stdio.h>
-
+#include "uart.h" 
+#include <string.h>
+#include <stdlib.h>
 
 //Constantes
 #define Fpclk 25e6			                 //Frecuencia periférico
@@ -28,6 +30,14 @@ uint32_t vueltas=0;					      //Contadores vuelta.
 uint32_t Centimetros=0;
 float Valor_ADC=0, Voltios=0;			    //Variables ADC 
 volatile unsigned int Distancia=0;	
+uint32_t i=0;
+char fin=0;
+
+char buffer[30];	// Buffer de recepción
+char *ptr_rx;			// puntero de recepción
+char rx_completa;// Flag de recepción de cadena completa que se activa al recibir CR(0x0D)
+char *ptr_tx;			// puntero de transmisión
+char tx_completa;	//Flag de transmisión
 
 void Detector_Obstaculos(int dist);
 void Parar(void);
@@ -190,26 +200,7 @@ void ADC_IRQHandler (void)
 	Valor_ADC=((LPC_ADC->ADGDR)>>4)&0xFFF;	//Leemos el valor del ADC precisión de 12 bits
 	Voltios=(Valor_ADC*Vref)/4095;					         //Convertimos a voltios.
 	Distancia=(int)((23.75/(Voltios-0.2))-0.42);			     //Calculamos distancia a la que está el objeto
-	Detector_Obstaculos(10);
-//	if((Distancia<=10)||(flag==1)){
-//		Buffer_Dist[i]=Distancia;
-//		i++;
-//		flag=1;
-//		if(i==MAX){
-//			suma=0;
-//			for(j=0; j<MAX; j++){
-//				suma+=Buffer_Dist[j];
-//			}
-//			media=suma/MAX;
-//			if(media<=10){
-//				i=0; 
-//				flag=0;
-//				while(1){
-//					Parar();
-//				}
-//			}
-//		}
-//	}
+	Detector_Obstaculos(Centimetros);
 }
 
 //Parar motor
@@ -266,7 +257,7 @@ void Avanzar(int cm)
 	Parar();
 }
 
-//Retroced
+//Retroceder
 void Retroceder(int cm)
 {
 	uint32_t Flancos=0;
@@ -315,6 +306,7 @@ void Giro_Derecha()
 		Set_Velocidad_I(duttyturnrightI);
 		Set_Velocidad_D(50);
 	}
+	Avanzar(Centimetros);
 	Parar();
 }
 
@@ -339,6 +331,7 @@ void Giro_Izquierda()
 		Set_Velocidad_I(duttyturnleftI);
 		Set_Velocidad_D(50);
 	}
+	Avanzar(Centimetros);
 	Parar();
 }
 
@@ -351,11 +344,51 @@ int main (void)
 	TIMER0_Config();				     					//Configuración TIM0.
 	TIMER2_Config();				    			    //Configuración TIM2.
 	TIMER1_Config();				     					//Configuración TIM1.
-	ADC_Config();				                  //Configuración ADC.
-	//Giro_Derecha();
-	//Retroceder(15);
-	//Giro_Izquierda();
-	while (1){
-		Avanzar(200);
-	}
+	ADC_Config();													//Configuración ADC.
+	uart0_init(9600);				              //Uart a 9600 baudios
+	ptr_rx=buffer;
+	
+	tx_cadena_UART0("Introduzca la sentencia de movimientos, puede introducir hasta 10 movimientos:\n");			//Mandamos mensaje
+	while(tx_completa==0);			    //Espera a que se termine de mandar la cadena de caracteres. Cuando termina tx_completa=1
+	tx_completa=0;			     //Borrar flag de transmisión
+	
+	do{
+		if(rx_completa){			    //Si se ha llenado el buffer de recepción (rx_completa=1)
+			rx_completa=0;
+			for(i=0; i<30; i+=3){
+				if(buffer[i]=='A'){
+					Centimetros=atoi(&buffer[i+1]);	
+					Avanzar(Centimetros);
+				}
+				else if(buffer[i]=='D'){
+					Centimetros=atoi(&buffer[i+1]);
+					Giro_Derecha();
+					//Avanzar(Centimetros);
+				}
+				else if(buffer[i]=='I'){
+					Centimetros=atoi(&buffer[i+1]);
+					Giro_Izquierda();
+					//Avanzar(Centimetros);
+				}
+				else if(buffer[i]=='R'){					
+					Centimetros=atoi(&buffer[i+1]);
+					Retroceder(Centimetros);
+				}
+				else if(buffer[i]=='O'){
+					Centimetros=atoi(&buffer[i+1]);
+					Detector_Obstaculos(Centimetros);
+				}
+				else if(buffer[i]==0x0D){
+					fin=1;
+					break;
+				}
+				else{
+					tx_cadena_UART0("Comando erroneo\n\r");
+					fin=1;
+					break;
+				}
+			}	
+		}
+	}while(fin==0);
+	while (1);
 }
