@@ -46,8 +46,9 @@ void Parar(void);
 //Configuracion GPIOS enable motores
 void Config_GPIO()
 {
-	LPC_GPIO1->FIODIR|=(1<<23)|(1<<25);				    //P1.23 y P1.25 como salida
+	LPC_GPIO1->FIODIR|=(1<<23)|(1<<25);				    //P1.23 y P1.25 como salida(Habilitar motores)
 	LPC_GPIO1->FIOCLR|=(1<<23)|(1<<25);				    //P1.23 y P1.25 inicialmente a 0. Enable activo a nivel alto.
+	LPC_GPIO2->FIODIR&=~(1<<12);			   					//SW2	como entrada
 }
 
 //Habilitación motor derecho, P1.23
@@ -103,12 +104,11 @@ void TIMER0_Config()
 //Encoder Izquierdo.
 void TIMER2_Config()
 {
-	LPC_SC->PCONP|=(1<<22);			    		 //ON TIM2.
+	LPC_SC->PCONP|=(1<<22);			    		  //ON TIM2.
 	LPC_PINCON->PINSEL0|=(3<<8);			    //P0.4 as CAP2.0
 	LPC_TIM2->PR=249999;			    			  //PCLK=25e6/249999+1
 	LPC_TIM2->CCR|=(1<<1)|(1<<2);			    //Flanco de bajada, Interrupción CAP2.0
-  //LPC_TIM2->CCR = 0x0006; 
-  LPC_TIM2->TCR = 0x01;				    //Start Timer.    
+  LPC_TIM2->TCR = 0x01;				    			//Start Timer.    
 	NVIC_SetPriority(TIMER2_IRQn,2);    
   NVIC_EnableIRQ(TIMER2_IRQn);
 }
@@ -353,42 +353,43 @@ int main (void)
 	while(tx_completa==0);			    //Espera a que se termine de mandar la cadena de caracteres. Cuando termina tx_completa=1
 	tx_completa=0;			     //Borrar flag de transmisión
 	
+	if(rx_completa){			    //Si se ha llenado el buffer de recepción (rx_completa=1)
+		rx_completa=0;
+	}
 	do{
-		if(rx_completa){			    //Si se ha llenado el buffer de recepción (rx_completa=1)
-			rx_completa=0;
-			for(i=0; i<30; i+=3){
-				if(buffer[i]=='A'){
-					Centimetros=atoi(&buffer[i+1]);	
-					Avanzar(Centimetros);
+		if(!(LPC_GPIO2->FIOPIN & (1<<12))){
+				for(i=0; i<30; i+=3){
+					if(buffer[i]=='A'){
+						Centimetros=atoi(&buffer[i+1]);	
+						Avanzar(Centimetros);
+					}
+					else if(buffer[i]=='D'){
+						Centimetros=atoi(&buffer[i+1]);
+						Giro_Derecha();
+						//Avanzar(Centimetros);
+					}
+					else if(buffer[i]=='I'){
+						Centimetros=atoi(&buffer[i+1]);
+						Giro_Izquierda();
+						//Avanzar(Centimetros);
+					}
+					else if(buffer[i]=='R'){					
+						Centimetros=atoi(&buffer[i+1]);
+						Retroceder(Centimetros);
+					}
+					else if(buffer[i]=='O'){
+						DistObj=atoi(&buffer[i+1]);
+					}
+					else if(buffer[i]==0x0D){
+						//fin=1;
+						break;
+					}
+					else{
+						tx_cadena_UART0("Comando erroneo\n\r");
+						//fin=1;
+						break;
+					}
 				}
-				else if(buffer[i]=='D'){
-					Centimetros=atoi(&buffer[i+1]);
-					Giro_Derecha();
-					//Avanzar(Centimetros);
-				}
-				else if(buffer[i]=='I'){
-					Centimetros=atoi(&buffer[i+1]);
-					Giro_Izquierda();
-					//Avanzar(Centimetros);
-				}
-				else if(buffer[i]=='R'){					
-					Centimetros=atoi(&buffer[i+1]);
-					Retroceder(Centimetros);
-				}
-				else if(buffer[i]=='O'){
-					DistObj=atoi(&buffer[i+1]);
-				}
-				else if(buffer[i]==0x0D){
-					fin=1;
-					break;
-				}
-				else{
-					tx_cadena_UART0("Comando erroneo\n\r");
-					fin=1;
-					break;
-				}
-			}	
-		}
-	}while(fin==0);
-	while (1);
+			}
+		}while(1);
 }
