@@ -9,3 +9,4 @@
 .\main.o: uart.h
 .\main.o: C:\keil\ARM\ARMCC\bin\..\include\string.h
 .\main.o: C:\keil\ARM\ARMCC\bin\..\include\stdlib.h
+.\main.o: C:\keil\ARM\ARMCC\bin\..\include\math.h

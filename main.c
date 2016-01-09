@@ -4,6 +4,7 @@
 #include "uart.h" 
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 //Constantes
 #define Fpclk 25e6			                 //Frecuencia periférico
@@ -20,6 +21,7 @@
 #define duttyturnleftD 75				         //Ciclo de trabajo motor derecho giro izquierda
 #define duttyturnleftI 25			           //Ciclo de trabajo motot izquierdo giro izquierda.
 #define MAX 3
+#define Nmuestras 20
 
 //Variables
 uint32_t T1=0, T2=0;				      //Periódo de los captures
@@ -30,9 +32,10 @@ uint32_t vueltas=0;					      //Contadores vuelta.
 uint32_t Centimetros=0;
 float Valor_ADC=0, Voltios=0;			    //Variables ADC 
 volatile unsigned int Distancia=0;
-uint32_t DistObj=0;
+uint32_t DistObj=10;
 uint32_t i=0;
 char fin=0;
+uint16_t muestras[Nmuestras];			// Array para guardar las muestras de un ciclo de un seno
 
 char buffer[30];	// Buffer de recepción
 char *ptr_rx;			// puntero de recepción
@@ -202,7 +205,7 @@ void ADC_IRQHandler (void)
 	Voltios=(Valor_ADC*Vref)/4095;					         //Convertimos a voltios.
 	Distancia=(int)((23.75/(Voltios-0.2))-0.42);			     //Calculamos distancia a la que está el objeto
 	Detector_Obstaculos(DistObj);
-}
+}	
 
 //Parar motor
 void Parar()
@@ -227,8 +230,7 @@ void Detector_Obstaculos(int Dist)
 			i=0;
 		}
 	}
-}		
-
+}
 
 //Avanzar
 void Avanzar(int cm)
@@ -345,11 +347,11 @@ int main (void)
 	TIMER0_Config();				     					//Configuración TIM0.
 	TIMER2_Config();				    			    //Configuración TIM2.
 	TIMER1_Config();				     					//Configuración TIM1.
-	ADC_Config();													//Configuración ADC.
+	ADC_Config();		                      //Configuración ADC.
 	uart0_init(9600);				              //Uart a 9600 baudios
 	ptr_rx=buffer;
 	
-	tx_cadena_UART0("Introduzca la sentencia de movimientos, puede introducir hasta 10 movimientos:\n");			//Mandamos mensaje
+	tx_cadena_UART0("Introduzca la sentencia de movimientos, puede introducir hasta 10 movimientos:\n\r");			//Mandamos mensaje
 	while(tx_completa==0);			    //Espera a que se termine de mandar la cadena de caracteres. Cuando termina tx_completa=1
 	tx_completa=0;			     //Borrar flag de transmisión
 	
